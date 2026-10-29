@@ -3,10 +3,11 @@ import io
 import json
 import os
 import secrets
+import shutil
 from pathlib import Path
 from functools import wraps
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app
 from werkzeug.utils import secure_filename
 
 from .extensions import db
@@ -157,6 +158,40 @@ def admin():
         "verified": VerificationLog.query.filter_by(result="VERIFIED").count(),
     }
     return render_template("admin.html", certificates=certificates, logs=logs, batches=batches, stats=stats, query=query, status=status)
+
+
+@web.post("/admin/clear-data")
+@admin_required
+def clear_data():
+    """Clear the active database registry/history and configured uploaded files."""
+    confirmation = request.form.get("confirmation", "").strip()
+    if confirmation != "DELETE ALL DATA":
+        flash('Data were not deleted. Type DELETE ALL DATA exactly to confirm.', "error")
+        return redirect(url_for("web.admin"))
+
+    upload_dir = Path(current_app.config["UPLOAD_DIR"]).resolve()
+    database_url = db.engine.url.render_as_string(hide_password=True)
+
+    try:
+        # Delete audit/child rows before parent rows. Keep the database schema intact.
+        VerificationLog.query.delete(synchronize_session=False)
+        ImportItem.query.delete(synchronize_session=False)
+        ImportBatch.query.delete(synchronize_session=False)
+        Certificate.query.delete(synchronize_session=False)
+        db.session.commit()
+
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        for child in upload_dir.iterdir():
+            if child.is_symlink() or child.is_file():
+                child.unlink()
+            elif child.is_dir():
+                shutil.rmtree(child)
+
+        flash(f"Cleared all records and uploaded files. Active database: {database_url}", "success")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Could not completely clear data: {str(exc)[:200]}. Active database: {database_url}", "error")
+    return redirect(url_for("web.admin"))
 
 
 @web.post("/admin/import")
