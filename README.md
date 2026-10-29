@@ -271,4 +271,4 @@ The distributed ZIP is shipped with an empty local registry/history. To clear lo
 python reset_data.py
 ```
 
-This clears certificates, review items, import batches and verification logs, and removes uploaded files.
+The script prints the exact database and upload directory it will affect, shows record counts, and asks you to type `RESET` before deleting anything. This helps catch cases where the app is using a different `DATABASE_URL` or `UPLOAD_DIR` than expected. It clears certificates, review items, import batches and verification logs, and removes files inside the configured upload directory. It does not delete the database file itself.
