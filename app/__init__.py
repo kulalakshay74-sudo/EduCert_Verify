@@ -18,7 +18,7 @@ def _ensure_schema(app):
         additions = {
             "student_id": "VARCHAR(120)", "recipient_name": "VARCHAR(200)", "institution_name": "VARCHAR(300)",
             "source_filename": "VARCHAR(300)", "source_path": "VARCHAR(700)", "extraction_method": "VARCHAR(80)",
-            "extraction_confidence": "FLOAT", "extraction_version": "VARCHAR(30)", "raw_ocr": "TEXT",
+            "extraction_confidence": "FLOAT", "ocr_confidence": "FLOAT DEFAULT 0", "extraction_version": "VARCHAR(30)", "raw_ocr": "TEXT",
             "source_file_hash": "VARCHAR(64)", "updated_at": "DATETIME",
         }
         with db.engine.begin() as conn:
