@@ -171,14 +171,64 @@ def extract_ocr(file_path):
             continue
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            text = pytesseract.image_to_string(gray)
+            # Denoise and threshold a working copy to improve recognition on scans.
+            gray = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
+            processed = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+            text = pytesseract.image_to_string(processed)
+            data = pytesseract.image_to_data(processed, output_type=pytesseract.Output.DICT)
         except Exception as exc:
             return {"available": False, "text": "", "fields": {}, "error": f"Tesseract unavailable: {exc}"}
+
+        word_scores = []
+        scored_words = []
+        for word, raw_conf in zip(data.get("text", []), data.get("conf", [])):
+            word = (word or "").strip()
+            try:
+                score = float(raw_conf)
+            except (TypeError, ValueError):
+                continue
+            if word and score >= 0:
+                word_scores.append(score)
+                scored_words.append({"word": word, "confidence": round(score, 1)})
+
+        page_confidence = round(sum(word_scores) / len(word_scores), 1) if word_scores else 0.0
         fields = _extract_fields(text)
+        field_confidence = {}
+        for key, value in fields.items():
+            value_tokens = {token.lower() for token in re.findall(r"[A-Za-z0-9]+", str(value)) if len(token) > 1}
+            matches = [item["confidence"] for item in scored_words if item["word"].lower().strip(".,:;()") in value_tokens]
+            field_confidence[key] = round(sum(matches) / len(matches), 1) if matches else page_confidence
         all_text.append(text)
         combined_fields.update({k: v for k, v in fields.items() if v})
-        page_results.append({"page": page_number, "fields": fields})
+        page_results.append({
+            "page": page_number, "fields": fields, "field_confidence": field_confidence,
+            "confidence": page_confidence, "words_detected": len(word_scores),
+            "word_count": len(text.split()),
+        })
 
     if not all_text:
         return {"available": False, "text": "", "fields": {}, "error": "No readable certificate pages found."}
-    return {"available": True, "text": "\n\n--- PAGE BREAK ---\n\n".join(all_text), "fields": combined_fields, "pages": page_results}
+    total_words = sum(page["words_detected"] for page in page_results)
+    overall_confidence = round(
+        sum(page["confidence"] * page["words_detected"] for page in page_results) / total_words, 1
+    ) if total_words else 0.0
+    combined_field_confidence = {}
+    for page in page_results:
+        combined_field_confidence.update(page["field_confidence"])
+    return {
+        "available": True,
+        "text": "\n\n--- PAGE BREAK ---\n\n".join(all_text),
+        "fields": combined_fields,
+        "pages": page_results,
+        "confidence": overall_confidence,
+        "field_confidence": combined_field_confidence,
+        "words_detected": total_words,
+        "pages_processed": len(page_results),
+        "pipeline": [
+            {"name": "Document loading", "status": "complete"},
+            {"name": "Image preprocessing", "status": "complete"},
+            {"name": "Text recognition", "status": "complete"},
+            {"name": "Field extraction", "status": "complete"},
+            {"name": "Confidence analysis", "status": "complete"},
+        ],
+    }
