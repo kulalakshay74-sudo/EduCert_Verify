@@ -113,6 +113,26 @@ def admin_logout():
     return redirect(url_for("web.index"))
 
 
+@web.route("/admin/ocr-studio", methods=["GET", "POST"])
+@admin_required
+def ocr_studio():
+    result = None
+    filename = None
+    if request.method == "POST":
+        file = request.files.get("certificate")
+        if not file or not file.filename:
+            flash("Choose a PDF or image to run OCR analysis.", "error")
+            return redirect(url_for("web.ocr_studio"))
+        if not allowed_file(file.filename):
+            flash("Supported formats: PDF, PNG, JPG, JPEG, WEBP and BMP.", "error")
+            return redirect(url_for("web.ocr_studio"))
+        path, filename = _save_upload(file, prefix="ocrstudio_")
+        result = extract_ocr(path)
+        if not result.get("available"):
+            flash(result.get("error", "OCR could not process this file."), "error")
+    return render_template("ocr_studio.html", result=result, filename=filename)
+
+
 @web.get("/admin")
 @admin_required
 def admin():
