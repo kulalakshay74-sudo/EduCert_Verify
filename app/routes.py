@@ -194,6 +194,61 @@ def clear_data():
     return redirect(url_for("web.admin"))
 
 
+@web.post("/admin/import/start")
+@admin_required
+def bulk_import_start():
+    try:
+        total = int(request.form.get("total_files", "0"))
+    except ValueError:
+        total = 0
+    limit = int(os.getenv("MAX_BULK_FILES", "100"))
+    if total < 1 or total > limit:
+        return jsonify({"error": f"Select between 1 and {limit} files."}), 400
+    batch = ImportBatch(total_files=total)
+    db.session.add(batch)
+    db.session.commit()
+    return jsonify({"batch_id": batch.id, "total": total})
+
+@web.post("/admin/import/<int:batch_id>/file")
+@admin_required
+def bulk_import_file(batch_id):
+    batch = ImportBatch.query.get_or_404(batch_id)
+    if ImportItem.query.filter_by(batch_id=batch.id).count() >= batch.total_files:
+        return jsonify({"error": "Import batch is already complete."}), 409
+    file = request.files.get("certificate")
+    if not file or not file.filename:
+        return jsonify({"error": "No certificate file supplied."}), 400
+    status, message, fields, cid, score, path = "FAILED", "", {}, "", 0, None
+    try:
+        if not allowed_file(file.filename):
+            raise ValueError("Unsupported file type")
+        path, original_name = _save_upload(file, prefix="registry_")
+        result = extract_certificate(path)
+        fields = result.get("fields", {})
+        cid = fields.get("certificate_id", "")
+        score = result.get("ocr", {}).get("confidence", 0)
+        if not cid:
+            batch.needs_review += 1
+            status, message = "NEEDS_REVIEW", "Certificate ID could not be extracted from QR/OCR."
+        elif _find_certificate(cid):
+            batch.duplicates += 1
+            status, message = "DUPLICATE", "Certificate ID already exists in the registry."
+        else:
+            values = fields.copy()
+            values["certificate_hash"] = certificate_hash(values)
+            values["source_file_hash"] = file_hash(path)
+            values.update({"source_filename": original_name, "source_path": str(path), "extraction_method": "QR+OCR" if result.get("qr", {}).get("found") else "OCR", "extraction_confidence": result.get("confidence", 0), "ocr_confidence": score, "raw_ocr": result.get("ocr", {}).get("text", ""), "extraction_version": "2.0", "status": "ACTIVE"})
+            db.session.add(Certificate(**values))
+            batch.imported += 1
+            status, message = "IMPORTED", "Certificate added to the registry."
+    except Exception as exc:
+        batch.failed += 1
+        message = str(exc)[:490]
+    db.session.add(ImportItem(batch_id=batch.id, filename=secure_filename(file.filename) or file.filename, certificate_id=cid or None, status=status, message=message, extracted_json=json.dumps(fields, ensure_ascii=False), ocr_confidence=score, source_path=str(path) if path else None))
+    db.session.commit()
+    processed = ImportItem.query.filter_by(batch_id=batch.id).count()
+    return jsonify({"batch_id": batch.id, "total": batch.total_files, "processed": processed, "percent": round(processed * 100 / batch.total_files), "status": status, "filename": file.filename, "message": message, "counts": {"imported": batch.imported, "duplicates": batch.duplicates, "needs_review": batch.needs_review, "failed": batch.failed}})
+
 @web.post("/admin/import")
 @admin_required
 def bulk_import():
