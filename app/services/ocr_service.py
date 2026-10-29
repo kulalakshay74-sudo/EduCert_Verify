@@ -157,6 +157,7 @@ def _looks_like_institution(value):
 
 
 def extract_ocr(file_path):
+    """Extract certificate text with one Tesseract pass per page."""
     if pytesseract is None:
         return {"available": False, "text": "", "fields": {}, "error": "pytesseract is not installed."}
     try:
@@ -170,27 +171,46 @@ def extract_ocr(file_path):
         if image is None:
             continue
         try:
+            # Grayscale is much cheaper than denoising + adaptive thresholding.
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            # Denoise and threshold a working copy to improve recognition on scans.
-            gray = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
-            processed = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-            text = pytesseract.image_to_string(processed)
-            data = pytesseract.image_to_data(processed, output_type=pytesseract.Output.DICT)
+            height, width = gray.shape[:2]
+            # Avoid feeding huge scans to Tesseract; keep enough pixels for small text.
+            longest = max(height, width)
+            if longest > 2200:
+                scale = 2200 / longest
+                gray = cv2.resize(gray, (max(1, int(width * scale)), max(1, int(height * scale))), interpolation=cv2.INTER_AREA)
+
+            # image_to_data returns recognized words, positions and confidence in a single OCR run.
+            data = pytesseract.image_to_data(
+                gray,
+                output_type=pytesseract.Output.DICT,
+                config="--oem 1 --psm 6",
+            )
         except Exception as exc:
             return {"available": False, "text": "", "fields": {}, "error": f"Tesseract unavailable: {exc}"}
 
+        line_words = {}
         word_scores = []
         scored_words = []
-        for word, raw_conf in zip(data.get("text", []), data.get("conf", [])):
-            word = (word or "").strip()
+        for index, (raw_word, raw_conf) in enumerate(zip(data.get("text", []), data.get("conf", []))):
+            word = (raw_word or "").strip()
             try:
                 score = float(raw_conf)
             except (TypeError, ValueError):
+                score = -1
+            if not word:
                 continue
-            if word and score >= 0:
+            line_key = (
+                data.get("block_num", [0] * len(data.get("text", [])))[index],
+                data.get("par_num", [0] * len(data.get("text", [])))[index],
+                data.get("line_num", [index] * len(data.get("text", [])))[index],
+            )
+            line_words.setdefault(line_key, []).append(word)
+            if score >= 0:
                 word_scores.append(score)
                 scored_words.append({"word": word, "confidence": round(score, 1)})
 
+        text = "\n".join(" ".join(words) for words in line_words.values())
         page_confidence = round(sum(word_scores) / len(word_scores), 1) if word_scores else 0.0
         fields = _extract_fields(text)
         field_confidence = {}
