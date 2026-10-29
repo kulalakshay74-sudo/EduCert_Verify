@@ -180,12 +180,14 @@ def bulk_import():
         message = ""
         extracted = {}
         cid = ""
+        ocr_score = 0
         path = None
         try:
             if not allowed_file(file.filename):
                 raise ValueError("Unsupported file type")
             path, original_name = _save_upload(file, prefix="registry_")
             result = extract_certificate(path)
+            ocr_score = result.get("ocr", {}).get("confidence", 0)
             extracted = result["fields"]
             cid = extracted.get("certificate_id", "")
             if not cid:
@@ -219,7 +221,7 @@ def bulk_import():
         except Exception as exc:
             batch.failed += 1
             message = str(exc)[:490]
-        db.session.add(ImportItem(batch_id=batch.id, filename=file.filename, certificate_id=cid or None, status=item_status, message=message, extracted_json=json.dumps(extracted), source_path=str(path) if path else None))
+        db.session.add(ImportItem(batch_id=batch.id, filename=file.filename, certificate_id=cid or None, status=item_status, message=message, extracted_json=json.dumps(extracted), ocr_confidence=ocr_score, source_path=str(path) if path else None))
 
     db.session.commit()
     flash(f"Bulk import complete: {batch.imported} imported, {batch.duplicates} duplicates, {batch.needs_review} need review, {batch.failed} failed.", "success")
@@ -300,7 +302,8 @@ def review_reextract(item_id):
         return redirect(url_for("web.review_dashboard"))
     result = extract_certificate(item.source_path)
     item.extracted_json = json.dumps(result["fields"], ensure_ascii=False)
-    item.message = f"Re-extracted at {result['confidence']}% confidence."
+    item.ocr_confidence = result.get("ocr", {}).get("confidence", 0)
+    item.message = f"Re-extracted. OCR confidence {item.ocr_confidence:.1f}%; extraction confidence {result['confidence']}%."
     if result["fields"].get("certificate_id"):
         item.certificate_id = result["fields"]["certificate_id"]
         flash("Certificate ID was found. Review it and approve/register.", "success")
