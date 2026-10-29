@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Admin Console · EduCert Verify{% endblock %}
+{% block content %}
+<section class="dashboard-head">
+  <div><span class="eyebrow">ISSUER CONTROL CENTER</span><h1>Credential operations</h1><p>Your registry is database-backed. Restarting the application does not clear certificates, batches or verification history. For cloud deployments, point <code>DATABASE_URL</code> to persistent PostgreSQL.</p></div>
+  <div class="head-actions"><a class="outline-button" href="{{url_for('web.review_dashboard')}}">Review Queue{% if stats.review %} · {{stats.review}}{% endif %}</a><a class="outline-button" href="{{url_for('web.export_csv')}}">↓ Export Registry</a><a class="outline-button" href="{{url_for('web.index')}}">Open Verifier ↗</a></div>
+</section>
+<section class="stats-grid">
+  <div class="stat-card"><span>Total credentials</span><strong>{{stats.total}}</strong><small>Persistent registry records</small></div>
+  <div class="stat-card"><span>Active</span><strong>{{stats.active}}</strong><small>Available for verification</small></div>
+  <div class="stat-card"><span>Revoked</span><strong>{{stats.revoked}}</strong><small>Blocked credentials</small></div>
+  <div class="stat-card"><span>Needs review</span><strong>{{stats.review}}</strong><small>Items requiring admin attention</small></div>
+</section>
+<section class="import-layout">
+  <div class="import-card">
+    <div class="section-title compact"><span class="eyebrow">AUTOMATED INGESTION</span><h2>Import certificates in bulk</h2><p>No manual registration. Upload certificates and EduCert extracts the QR payload, recipient, college/institution, student ID, course, issuer and dates.</p></div>
+    <form action="{{url_for('web.bulk_import')}}" method="post" enctype="multipart/form-data">
+      <label class="bulk-drop" for="certificates"><input id="certificates" type="file" name="certificates" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp" required><div class="upload-icon">↑</div><strong id="bulkCount">Drop certificates here or browse</strong><span>Up to 100 files · PDF and image certificates</span></label>
+      <div class="import-actions"><button class="primary" type="submit">Import & Extract Automatically →</button><span>Duplicates are detected by certificate ID and file hash. Missing IDs go to review.</span></div>
+    </form>
+  </div>
+  <div class="workflow-card"><span class="eyebrow">PERSISTENT PIPELINE</span><h3>Every upload is traceable</h3><div class="step"><b>1</b><span><strong>Read</strong><small>QR JSON, URL and PDF pages</small></span></div><div class="step"><b>2</b><span><strong>Extract</strong><small>Label-aware OCR fields</small></span></div><div class="step"><b>3</b><span><strong>Protect</strong><small>Certificate + file hashes</small></span></div><div class="step"><b>4</b><span><strong>Persist</strong><small>Registry, batch and audit history</small></span></div></div>
+</section>
+<section class="table-card">
+  <div class="table-toolbar"><div><span class="eyebrow">REGISTRY</span><h2>Certificates</h2></div><form class="search-form"><input name="q" value="{{query}}" placeholder="Search ID, recipient, college, course or issuer"><select name="status"><option value="ALL" {{'selected' if status=='ALL'}}>All status</option><option value="ACTIVE" {{'selected' if status=='ACTIVE'}}>Active</option><option value="REVOKED" {{'selected' if status=='REVOKED'}}>Revoked</option></select><button class="outline-button">Filter</button></form></div>
+  <div class="table-scroll"><table><thead><tr><th>Certificate</th><th>Recipient</th><th>College / Institution</th><th>Course</th><th>Issuer</th><th>Confidence</th><th>Status</th><th>Action</th></tr></thead><tbody>
+  {% for c in certificates %}<tr><td><strong>{{c.certificate_id}}</strong><small>{{c.source_filename or 'Legacy record'}}</small></td><td>{{c.recipient_name or c.student_name}}{% if c.student_id %}<small>{{c.student_id}}</small>{% endif %}</td><td>{{c.institution_name or '—'}}</td><td>{{c.course_name}}</td><td>{{c.issuer}}</td><td><span class="confidence">{{c.extraction_confidence or 0}}%</span></td><td><span class="status {{c.status|lower}}">{{c.status}}</span></td><td>{% if c.status=='ACTIVE' %}<form method="post" action="{{url_for('web.revoke', cert_id=c.id)}}"><button class="tiny danger">Revoke</button></form>{% else %}<form method="post" action="{{url_for('web.activate', cert_id=c.id)}}"><button class="tiny success">Activate</button></form>{% endif %}{% if c.source_path %}<form method="post" action="{{url_for('web.reprocess', cert_id=c.id)}}"><button class="tiny">Re-extract</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="8" class="empty">No certificates found.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+<section class="lower-grid">
+ <div class="table-card"><div class="table-toolbar"><div><span class="eyebrow">IMPORT HISTORY</span><h2>Recent batches</h2></div></div><div class="table-scroll"><table><thead><tr><th>Batch</th><th>Files</th><th>Imported</th><th>Duplicates</th><th>Review</th><th>Failed</th><th></th></tr></thead><tbody>{% for b in batches %}<tr><td>#{{b.id}}<small>{{b.created_at.strftime('%d %b %Y %H:%M') if b.created_at else ''}}</small></td><td>{{b.total_files}}</td><td>{{b.imported}}</td><td>{{b.duplicates}}</td><td>{{b.needs_review}}</td><td>{{b.failed}}</td><td><a href="{{url_for('web.import_details', batch_id=b.id)}}">View</a></td></tr>{% else %}<tr><td colspan="7" class="empty">No imports yet.</td></tr>{% endfor %}</tbody></table></div></div>
+ <div class="table-card"><div class="table-toolbar"><div><span class="eyebrow">AUDIT TRAIL</span><h2>Recent verification checks</h2></div></div><div class="table-scroll"><table><thead><tr><th>Certificate</th><th>Result</th><th>Score</th><th>Time</th></tr></thead><tbody>{% for l in logs %}<tr><td>{{l.certificate_id or '—'}}</td><td><span class="status {{l.result|lower}}">{{l.result}}</span></td><td>{{l.score}}%</td><td>{{l.created_at.strftime('%d %b %H:%M') if l.created_at else ''}}</td></tr>{% else %}<tr><td colspan="4" class="empty">No verification activity yet.</td></tr>{% endfor %}</tbody></table></div></div>
+</section>
+<script>document.getElementById('certificates').addEventListener('change',function(){document.getElementById('bulkCount').textContent=this.files.length?this.files.length+' certificate file(s) selected':'Drop certificates here or browse';});</script>
+{% endblock %}

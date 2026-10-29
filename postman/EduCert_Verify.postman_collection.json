@@ -1,0 +1,46 @@
+{
+  "info": {
+    "name": "EduCert Verify API",
+    "_postman_id": "educert-verify-demo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:5000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/health"
+      }
+    },
+    {
+      "name": "Lookup Certificate",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/certificates/EDUSKILL-AWSGENAI-2026-001"
+      }
+    },
+    {
+      "name": "Verify Certificate",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "certificate",
+              "type": "file",
+              "src": "../sample_certificates/EDUSKILL_AWS_GENAI_SAMPLE.png"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/verify"
+      }
+    }
+  ]
+}

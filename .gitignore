@@ -1,0 +1,13 @@
+@'
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+instance/
+.pytest_cache/
+data/uploads/*
+!data/uploads/.gitkeep
+'@ | Set-Content -Path ".gitignore" -Encoding utf8

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Verification Result · EduCert Verify{% endblock %}
+{% block content %}
+<section class="result-shell">
+  <div class="result-banner"><div><span class="eyebrow">VERIFICATION RESULT</span><h1>{{result.result}}</h1><p>{{result.reasons[0] if result.reasons else 'Verification completed.'}}</p></div><div class="result-score">{{result.score}}%</div></div>
+  <div class="result-grid">
+    <div class="result-card"><h2>Verification signals</h2><ul>{% for reason in result.reasons %}<li>{{reason}}</li>{% endfor %}</ul><h3>Certificate ID</h3><p><strong>{{result.qr.certificate_id or result.ocr.fields.certificate_id or 'Not detected'}}</strong></p><h3>QR payload</h3><p>{{result.qr.payload_type or 'Not detected'}}</p></div>
+    <div class="result-card"><h2>Certificate identity</h2>{% if result.registry %}<div class="identity-grid"><div><small>Recipient</small><strong>{{result.registry.recipient_name or result.registry.student_name}}</strong></div><div><small>College / Institution</small><strong>{{result.registry.institution_name or '—'}}</strong></div><div><small>Student ID</small><strong>{{result.registry.student_id or '—'}}</strong></div><div><small>Course</small><strong>{{result.registry.course_name}}</strong></div><div><small>Issuer</small><strong>{{result.registry.issuer}}</strong></div><div><small>Status</small><strong>{{result.registry.status}}</strong></div></div>{% else %}<p>No registry record matched this certificate.</p>{% endif %}</div>
+  </div>
+  {% if result.checks %}<div class="result-card" style="margin-top:16px"><h2>Field comparison</h2><div class="table-scroll"><table class="check-table"><tr><th>Field</th><th>Extracted</th><th>Registry</th><th>Match</th></tr>{% for field, check in result.checks.items() %}<tr><td>{{field|replace('_',' ')|title}}</td><td>{{check.source_value or '—'}}</td><td>{{check.registry_value or '—'}}</td><td>{{'✓ Match' if check.match else '—'}}</td></tr>{% endfor %}</table></div></div>{% endif %}
+  <div class="result-card" style="margin-top:16px"><h2>OCR text</h2><pre>{{result.ocr.text or 'OCR text unavailable'}}</pre></div>
+  <p style="margin-top:20px"><a class="outline-button" href="{{url_for('web.index')}}">← Verify another certificate</a></p>
+</section>
+{% endblock %}

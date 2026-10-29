@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Review Queue · EduCert Verify{% endblock %}
+{% block content %}
+<section class="dashboard-head">
+  <div><span class="eyebrow">QUALITY CONTROL</span><h1>Review Queue</h1><p>These certificates could not be safely registered automatically. Review does not mean the certificate is fake; it means the system needs a reliable certificate ID or clearer extracted data.</p></div>
+  <div class="head-actions"><a class="outline-button" href="{{url_for('web.admin')}}">← Dashboard</a></div>
+</section>
+<section class="stats-grid">
+  <div class="stat-card"><span>Pending review</span><strong>{{stats.pending}}</strong><small>Needs administrator action</small></div>
+  <div class="stat-card"><span>Imported</span><strong>{{stats.imported}}</strong><small>Successfully registered</small></div>
+  <div class="stat-card"><span>Duplicates</span><strong>{{stats.duplicates}}</strong><small>Already registered</small></div>
+  <div class="stat-card"><span>Failed</span><strong>{{stats.failed}}</strong><small>Processing failures</small></div>
+</section>
+<section class="table-card">
+<div class="table-toolbar"><div><span class="eyebrow">PENDING ITEMS</span><h2>Certificates requiring review</h2></div></div>
+<div class="table-scroll"><table><thead><tr><th>File</th><th>Certificate ID</th><th>Extracted details</th><th>Reason</th><th>Actions</th></tr></thead><tbody>
+{% for item in items %}
+{% set d = {} %}
+{% if item.extracted_json %}{% set d = item.extracted_json|fromjson %}{% endif %}
+<tr>
+<td><strong>{{item.filename}}</strong><small>Batch #{{item.batch_id}}</small></td>
+<td>{{item.certificate_id or 'Not detected'}}</td>
+<td>
+<strong>{{d.get('recipient_name','—')}}</strong>
+<small>{{d.get('institution_name','—')}}</small>
+<small>{{d.get('course_name','—')}}</small>
+</td>
+<td><span class="status needs_review">NEEDS REVIEW</span><small>{{item.message or 'Incomplete automatic extraction'}}</small></td>
+<td>
+<form method="post" action="{{url_for('web.review_reextract', item_id=item.id)}}" style="display:inline"><button class="tiny">Re-extract</button></form>
+{% if item.certificate_id or d.get('certificate_id') %}<form method="post" action="{{url_for('web.review_approve', item_id=item.id)}}" style="display:inline"><button class="tiny success">Approve & Register</button></form>{% endif %}
+<form method="post" action="{{url_for('web.review_dismiss', item_id=item.id)}}" style="display:inline"><button class="tiny danger">Dismiss</button></form>
+</td>
+</tr>
+{% else %}<tr><td colspan="5" class="empty">Review queue is clear. New ambiguous certificates will appear here.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endblock %}
