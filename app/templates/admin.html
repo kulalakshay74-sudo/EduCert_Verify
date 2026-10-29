@@ -5,6 +5,19 @@
   <div><span class="eyebrow">ISSUER CONTROL CENTER</span><h1>Credential operations</h1><p>Your registry is database-backed. Restarting the application does not clear certificates, batches or verification history. For cloud deployments, point <code>DATABASE_URL</code> to persistent PostgreSQL.</p></div>
   <div class="head-actions"><a class="outline-button" href="{{url_for('web.review_dashboard')}}">Review Queue{% if stats.review %} · {{stats.review}}{% endif %}</a><a class="outline-button" href="{{url_for('web.export_csv')}}">↓ Export Registry</a><a class="outline-button" href="{{url_for('web.index')}}">Open Verifier ↗</a></div>
 </section>
+<section class="table-card" style="margin:1rem 0;border:1px solid #c94b4b">
+  <div class="table-toolbar">
+    <div><span class="eyebrow">DESTRUCTIVE ADMIN ACTION</span><h2>Clear all stored data</h2>
+      <p>This clears all certificate records, import batches, review items, verification history, and files in the upload directory used by this running app. It does not delete the database schema.</p>
+    </div>
+  </div>
+  <form action="{{url_for('web.clear_data')}}" method="post" onsubmit="return confirm('Permanently delete all records and uploaded files from the active EduCert database?');" style="padding:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:end">
+    <label style="flex:1;min-width:220px">Type <strong>DELETE ALL DATA</strong> to confirm
+      <input name="confirmation" type="text" autocomplete="off" placeholder="DELETE ALL DATA" required>
+    </label>
+    <button class="tiny danger" type="submit">Clear all data permanently</button>
+  </form>
+</section>
 <section class="stats-grid">
   <div class="stat-card"><span>Total credentials</span><strong>{{stats.total}}</strong><small>Persistent registry records</small></div>
   <div class="stat-card"><span>Active</span><strong>{{stats.active}}</strong><small>Available for verification</small></div>
