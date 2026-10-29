@@ -19,7 +19,7 @@
 {% if item.extracted_json %}{% set d = item.extracted_json|fromjson %}{% endif %}
 <tr>
 <td><strong>{{item.filename}}</strong><small>Batch #{{item.batch_id}}</small></td>
-<td>{{item.certificate_id or 'Not detected'}}</td>
+<td>{{item.certificate_id or 'Not detected'}}<small>OCR: {{"%.1f"|format(item.ocr_confidence or 0)}}%</small></td>
 <td>
 <strong>{{d.get('recipient_name','—')}}</strong>
 <small>{{d.get('institution_name','—')}}</small>
