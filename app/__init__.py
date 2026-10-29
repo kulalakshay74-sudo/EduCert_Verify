@@ -29,6 +29,8 @@ def _ensure_schema(app):
                 item_columns = {c["name"] for c in inspect(db.engine).get_columns("import_item")}
                 if "source_path" not in item_columns:
                     conn.execute(text("ALTER TABLE import_item ADD COLUMN source_path VARCHAR(700)"))
+                if "ocr_confidence" not in item_columns:
+                    conn.execute(text("ALTER TABLE import_item ADD COLUMN ocr_confidence FLOAT DEFAULT 0"))
             if "recipient_name" in {c["name"] for c in inspect(db.engine).get_columns("certificate")}:
                 conn.execute(text("UPDATE certificate SET recipient_name = student_name WHERE recipient_name IS NULL OR recipient_name = ''"))
 
