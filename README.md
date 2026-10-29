@@ -23,6 +23,19 @@ Upload up to `MAX_BULK_FILES` certificates at once. Each file is automatically:
 
 Files that cannot yield a certificate ID are **NEEDS_REVIEW** rather than silently being discarded.
 
+### OCR Studio and confidence analytics
+
+The Admin Portal includes a dedicated **OCR Studio** at `/admin/ocr-studio`. Upload a PDF or image to inspect recognition output before using it in the registry.
+
+- Overall OCR confidence calculated from Tesseract's word-level confidence output.
+- Per-page confidence and detected-word counts for multi-page PDFs.
+- Field-level confidence indicators for extracted certificate fields.
+- Visible processing pipeline: document loading, image preprocessing, text recognition, field extraction and confidence analysis.
+- Image denoising and Otsu thresholding before OCR.
+- Full extracted text, field summary and responsive analysis UI.
+
+**Confidence interpretation:** OCR confidence estimates how clearly Tesseract recognized text; it is not a certificate authenticity score. Field confidence estimates are based on matching extracted field tokens to Tesseract word-confidence output. If no field-token match is found, the page's OCR confidence is used as a fallback and should be treated as an estimate.
+
 ### Admin features
 
 - Professional issuer dashboard
