@@ -45,6 +45,7 @@ class ImportItem(db.Model):
     status = db.Column(db.String(40), nullable=False)
     message = db.Column(db.String(500))
     extracted_json = db.Column(db.Text)
+    ocr_confidence = db.Column(db.Float, default=0)
     source_path = db.Column(db.String(700))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
