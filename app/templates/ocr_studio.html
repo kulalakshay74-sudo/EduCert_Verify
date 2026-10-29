@@ -81,6 +81,29 @@
           <div class="ocr-kicker">05 / Raw recognition</div><h2>OCR text output</h2>
           <p class="ocr-muted">This is the text returned by the recognition engine, before registry matching.</p>
           <pre class="ocr-raw">{{ result.text }}</pre>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button class="outline-button" type="button" id="download-ocr-json">↓ Download JSON report</button>
+            <button class="outline-button" type="button" id="download-ocr-text">↓ Download OCR text</button>
+          </div>
+          <script>
+          (function(){
+            const report = {{ result|tojson }};
+            function saveFile(name, content, type) {
+              const blob = new Blob([content], {type:type});
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url; link.download = name;
+              document.body.appendChild(link); link.click(); link.remove();
+              setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+            }
+            document.getElementById('download-ocr-json').addEventListener('click', function() {
+              saveFile('educert-ocr-report.json', JSON.stringify(report, null, 2), 'application/json');
+            });
+            document.getElementById('download-ocr-text').addEventListener('click', function() {
+              saveFile('educert-ocr-text.txt', report.text || '', 'text/plain;charset=utf-8');
+            });
+          })();
+          </script>
         </section>
       {% elif result %}
         <section class="ocr-main-panel">
