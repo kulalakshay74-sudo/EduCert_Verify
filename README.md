@@ -33,6 +33,8 @@ The Admin Portal includes a dedicated **OCR Studio** at `/admin/ocr-studio`. Upl
 - Visible processing pipeline: document loading, image preprocessing, text recognition, field extraction and confidence analysis.
 - Image denoising and Otsu thresholding before OCR.
 - Full extracted text, field summary and responsive analysis UI.
+- Downloadable JSON OCR report and plain-text OCR output.
+- OCR and extraction confidence shown as separate values in the registry CSV export.
 
 **Confidence interpretation:** OCR confidence estimates how clearly Tesseract recognized text; it is not a certificate authenticity score. Field confidence estimates are based on matching extracted field tokens to Tesseract word-confidence output. If no field-token match is found, the page's OCR confidence is used as a fallback and should be treated as an estimate.
 
