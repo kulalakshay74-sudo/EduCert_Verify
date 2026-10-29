@@ -208,6 +208,7 @@ def bulk_import():
                         "source_path": str(path),
                         "extraction_method": "QR+OCR" if result["qr"].get("found") else "OCR",
                         "extraction_confidence": result["confidence"],
+                        "ocr_confidence": result["ocr"].get("confidence", 0),
                         "raw_ocr": result["ocr"].get("text", ""),
                         "status": "ACTIVE",
                     })
@@ -246,6 +247,7 @@ def reprocess(cert_id):
     cert.issue_date = fields.get("issue_date") or cert.issue_date
     cert.credential_url = fields.get("credential_url") or cert.credential_url
     cert.extraction_confidence = result["confidence"]
+    cert.ocr_confidence = result["ocr"].get("confidence", 0)
     cert.extraction_version = "2.0"
     cert.raw_ocr = result["ocr"].get("text", "")
     db.session.commit()
@@ -343,6 +345,7 @@ def review_approve(item_id):
             "source_path": item.source_path,
             "extraction_method": "QR+OCR" if (extract_certificate(item.source_path)["qr"].get("found")) else "OCR",
             "extraction_confidence": 100 if cid else 0,
+            "ocr_confidence": extract_ocr(item.source_path).get("confidence", 0),
             "extraction_version": "3.0",
             "raw_ocr": "",
             "status": "ACTIVE",
@@ -421,5 +424,5 @@ def certificate_lookup(certificate_id):
         "certificate_id": c.certificate_id, "student_name": c.student_name, "recipient_name": c.recipient_name or c.student_name, "institution_name": c.institution_name, "student_id": c.student_id,
         "course_name": c.course_name, "issuer": c.issuer, "issue_date": c.issue_date,
         "credential_url": c.credential_url, "status": c.status, "certificate_hash": c.certificate_hash,
-        "extraction_confidence": c.extraction_confidence,
+        "extraction_confidence": c.extraction_confidence, "ocr_confidence": c.ocr_confidence,
     }})
