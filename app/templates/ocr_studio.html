@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}OCR Studio · EduCert Verify{% endblock %}
+{% block content %}
+<section class="ocr-shell">
+  <header class="ocr-heading">
+    <div>
+      <div class="ocr-kicker">Intelligent document lab</div>
+      <h1>OCR <span style="color:#635bdb">Studio.</span></h1>
+      <p>See how clearly each certificate is read. Inspect the recognition pipeline, page-by-page scores, extracted identity fields and raw OCR output before making a verification decision.</p>
+    </div>
+    <a class="outline-button" href="{{ url_for('web.admin') }}">← Back to dashboard</a>
+  </header>
+
+  <div class="ocr-layout">
+    <aside class="ocr-panel">
+      <div class="ocr-kicker">01 / Input</div>
+      <h2>Analyze a certificate</h2>
+      <p>Upload one PDF or image. Multi-page PDFs are analyzed page by page.</p>
+      <form method="post" enctype="multipart/form-data" id="ocr-form">
+        <label class="ocr-drop" for="ocr-file">
+          <span class="ocr-glyph">✳</span>
+          <strong id="ocr-file-name">Choose certificate file</strong>
+          <span>PDF · PNG · JPG · WEBP · BMP</span>
+          <input id="ocr-file" type="file" name="certificate" accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp" required>
+        </label>
+        <button class="ocr-submit" type="submit" id="ocr-submit">Run OCR analysis&nbsp; →</button>
+      </form>
+      <div class="ocr-note"><strong>How to read the score</strong><br>OCR confidence measures text recognition clarity. It is not a certificate authenticity score. Always review low-confidence fields before registering a credential.</div>
+      <div class="ocr-tabs">
+        <a href="{{ url_for('web.admin') }}">Registry</a>
+        <a href="{{ url_for('web.review_dashboard') }}">Review queue</a>
+      </div>
+    </aside>
+
+    <div>
+      {% if result and result.available %}
+        {% set score = result.confidence|default(0)|float %}
+        <div class="ocr-metrics">
+          <div class="ocr-metric"><span>Overall OCR confidence</span><strong>{{ "%.1f"|format(score) }}%</strong><small>Word-confidence weighted</small><div class="ocr-gauge"><span style="width:{{ [score,100]|min }}%"></span></div></div>
+          <div class="ocr-metric"><span>Pages processed</span><strong>{{ result.pages_processed|default(result.pages|length) }}</strong><small>Pages with readable images</small></div>
+          <div class="ocr-metric"><span>Words detected</span><strong>{{ result.words_detected|default(0) }}</strong><small>Words with valid OCR scores</small></div>
+          <div class="ocr-metric"><span>Fields extracted</span><strong>{{ result.fields|length }}</strong><small>Of {{ (result.field_confidence|length) }} scored fields</small></div>
+        </div>
+
+        <section class="ocr-main-panel">
+          <div class="ocr-results-head"><div><div class="ocr-kicker">02 / Pipeline</div><h2>Recognition journey</h2></div><span class="ocr-pill">Analysis complete</span></div>
+          <div class="ocr-pipeline">
+            {% for stage in result.pipeline|default([]) %}
+              <div class="ocr-stage"><span class="stage-dot">✓</span><strong>{{ stage.name }}</strong><small>Completed</small></div>
+            {% endfor %}
+          </div>
+          <div class="ocr-results-head"><div><div class="ocr-kicker">03 / Extraction</div><h2>Extracted certificate fields</h2></div><span class="ocr-pill">{{ result.fields|length }} found</span></div>
+          {% if result.fields %}
+            <div class="ocr-fields">
+              {% for key, value in result.fields.items() %}
+                {% set field_score = result.field_confidence.get(key, score)|float %}
+                <article class="ocr-field">
+                  <div class="ocr-field-top"><label>{{ key.replace('_',' ') }}</label><span class="ocr-pill">{{ "%.1f"|format(field_score) }}%</span></div>
+                  <strong>{{ value }}</strong>
+                  <div class="ocr-gauge"><span style="width:{{ [field_score,100]|min }}%"></span></div>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="ocr-warning">Text was recognized, but no known certificate fields matched the extraction patterns. Inspect the raw text below.</div>
+          {% endif %}
+          <div class="ocr-legend"><span><i></i>Higher confidence</span><span>Scores come from Tesseract word-level output</span></div>
+        </section>
+
+        <section class="ocr-main-panel" style="margin-top:16px">
+          <div class="ocr-kicker">04 / Page diagnostics</div><h2>Page-by-page confidence</h2>
+          <p class="ocr-muted">A multi-page document can have different image quality on each page.</p>
+          <div class="ocr-page-list">
+            {% for page in result.pages %}
+              <div class="ocr-page"><div><strong>Page {{ page.page }}</strong><div class="ocr-muted">{{ page.words_detected }} scored words · {{ page.word_count }} text tokens</div><div class="ocr-gauge" style="width:min(360px,58vw)"><span style="width:{{ [page.confidence,100]|min }}%"></span></div></div><span class="ocr-pill">{{ "%.1f"|format(page.confidence) }}%</span></div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="ocr-main-panel" style="margin-top:16px">
+          <div class="ocr-kicker">05 / Raw recognition</div><h2>OCR text output</h2>
+          <p class="ocr-muted">This is the text returned by the recognition engine, before registry matching.</p>
+          <pre class="ocr-raw">{{ result.text }}</pre>
+        </section>
+      {% elif result %}
+        <section class="ocr-main-panel">
+          <div class="ocr-empty"><div><div class="ocr-glyph">!</div><h2>OCR analysis could not finish</h2><p>{{ result.error|default('No readable certificate pages were found.') }}</p><p class="ocr-muted">Check that Tesseract OCR is installed and available on PATH, then try a clearer PDF or image.</p></div></div>
+        </section>
+      {% else %}
+        <section class="ocr-main-panel">
+          <div class="ocr-empty"><div><div class="ocr-glyph">◎</div><h2>Your OCR report will appear here</h2><p>Upload a certificate to view real OCR confidence, extracted fields, page diagnostics and the complete recognized text.</p></div></div>
+          <div class="ocr-pipeline">
+            <div class="ocr-stage"><span class="stage-dot">1</span><strong>Load file</strong><small>PDF or image</small></div>
+            <div class="ocr-stage"><span class="stage-dot">2</span><strong>Preprocess</strong><small>Clean image</small></div>
+            <div class="ocr-stage"><span class="stage-dot">3</span><strong>Recognize</strong><small>Tesseract OCR</small></div>
+            <div class="ocr-stage"><span class="stage-dot">4</span><strong>Extract</strong><small>Certificate fields</small></div>
+            <div class="ocr-stage"><span class="stage-dot">5</span><strong>Score</strong><small>Confidence data</small></div>
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  const input=document.getElementById('ocr-file');
+  const label=document.getElementById('ocr-file-name');
+  const form=document.getElementById('ocr-form');
+  const button=document.getElementById('ocr-submit');
+  if(input&&label){input.addEventListener('change',function(){label.textContent=input.files&&input.files[0]?input.files[0].name:'Choose certificate file';});}
+  if(form&&button){form.addEventListener('submit',function(){if(input&&input.files&&input.files.length){button.disabled=true;button.textContent='Analyzing document…';}});}
+})();
+</script>
+{% endblock %}
