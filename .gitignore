@@ -1,13 +1,24 @@
-@'
+# Environment secrets
 .env
 .env.*
 !.env.example
+
+# Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-instance/
 .pytest_cache/
+
+# Local runtime and instance data
+instance/
+data/educert.db
+data/educert.db-shm
+data/educert.db-wal
 data/uploads/*
 !data/uploads/.gitkeep
-'@ | Set-Content -Path ".gitignore" -Encoding utf8
+
+# Generated artifacts
+.coverage
+htmlcov/
+*.log
