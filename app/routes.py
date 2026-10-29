@@ -393,9 +393,9 @@ def import_details(batch_id):
 def export_csv():
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Certificate ID", "Recipient Name", "College / Institution", "Student ID", "Course", "Issuer", "Issue Date", "Credential URL", "Status", "Confidence", "Source File", "Created At"])
+    writer.writerow(["Certificate ID", "Recipient Name", "College / Institution", "Student ID", "Course", "Issuer", "Issue Date", "Credential URL", "Status", "OCR Confidence", "Extraction Confidence", "Source File", "Created At"])
     for c in Certificate.query.order_by(Certificate.created_at.desc()).all():
-        writer.writerow([c.certificate_id, c.recipient_name or c.student_name, c.institution_name or "", c.student_id or "", c.course_name, c.issuer, c.issue_date or "", c.credential_url or "", c.status, c.extraction_confidence, c.source_filename or "", c.created_at])
+        writer.writerow([c.certificate_id, c.recipient_name or c.student_name, c.institution_name or "", c.student_id or "", c.course_name, c.issuer, c.issue_date or "", c.credential_url or "", c.status, c.ocr_confidence or 0, c.extraction_confidence, c.source_filename or "", c.created_at])
     return send_file(io.BytesIO(output.getvalue().encode("utf-8-sig")), mimetype="text/csv", as_attachment=True, download_name="educert_registry.csv")
 
 
