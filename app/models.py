@@ -20,6 +20,7 @@ class Certificate(db.Model):
     source_path = db.Column(db.String(700))
     extraction_method = db.Column(db.String(80), default="AUTO")
     extraction_confidence = db.Column(db.Float, default=0)
+    ocr_confidence = db.Column(db.Float, default=0)
     extraction_version = db.Column(db.String(30), default="2.0")
     raw_ocr = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
